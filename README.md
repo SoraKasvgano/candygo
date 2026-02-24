@@ -3,12 +3,14 @@
 CandyGo is a pure Go (no cgo) rewrite of the original `candy` project, targeting 1:1 behavior compatibility.
 
  [candy is an amazing net tool made by lanthora](https://github.com/lanthora/candy)
+ [WIKI](https://docs.canets.org/)
 
 The project provides:
 
 - client mode: join virtual network (WebSocket control plane + UDP P2P data plane)
 - server mode: WebSocket relay + dynamic address allocation + SD-WAN route publish
 - service mode: HTTP API (`/api/run`, `/api/status`, `/api/shutdown`)
+- the candy.cfg is fully compatible with original candy
 
 ## Goals
 
