@@ -23,3 +23,9 @@ go.work.sum
 
 # env file
 .env
+dist/candygo-linux-mipsel
+dist/candygo-linux-mips
+dist/candygo-linux-armv8
+dist/candygo-linux-armv7
+dist/candygo-linux-amd64
+AGENTS.md

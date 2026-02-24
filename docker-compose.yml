@@ -1,0 +1,15 @@
+services:
+  candygo:
+    container_name: candygo
+    image: candygo:latest
+    build:
+      context: .
+      dockerfile: dockerfile
+    network_mode: host
+    privileged: true
+    restart: unless-stopped
+    command: ["-c", "/etc/candy.cfg"]
+    volumes:
+      - /var/lib/candy:/var/lib/candy
+      - /path/to/candy.cfg:/etc/candy.cfg:ro
+
