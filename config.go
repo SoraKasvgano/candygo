@@ -20,6 +20,7 @@ type arguments struct {
 	ntp         string
 	noTimestamp bool
 	debug       bool
+	initConfig  bool
 
 	dhcp  string
 	sdwan string
@@ -81,6 +82,7 @@ func (a *arguments) parse(args []string) int {
 	localhost := fs.String("localhost", "", "local ip")
 	noTimestamp := fs.Bool("no-timestamp", false, "disable timestamps")
 	debug := fs.Bool("debug", false, "enable debug logs")
+	initConfig := fs.Bool("init-config", false, "write template config file and exit")
 	help := fs.BoolP("help", "h", false, "show help")
 
 	if err := fs.Parse(args); err != nil {
@@ -91,6 +93,14 @@ func (a *arguments) parse(args []string) int {
 		fmt.Printf("candy %s\n", version())
 		fmt.Print(fs.FlagUsages())
 		return -1
+	}
+	if *initConfig {
+		if err := initConfigFile(*cfgFile); err != nil {
+			errorf("init config failed: %v", err)
+			return -1
+		}
+		a.initConfig = true
+		return 0
 	}
 
 	if *cfgFile != "" {

@@ -21,6 +21,9 @@ func main() {
 	if args.parse(os.Args[1:]) != 0 {
 		os.Exit(1)
 	}
+	if args.initConfig {
+		return
+	}
 	config := args.json()
 
 	mode := jsonString(config, "mode", "")
