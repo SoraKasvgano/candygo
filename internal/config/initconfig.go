@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func initConfigFile(cfgFile string) error {
+func InitConfigFile(cfgFile string) error {
 	target := strings.TrimSpace(cfgFile)
 	if target == "" {
 		target = "candy.cfg"

@@ -1,4 +1,4 @@
-package main
+package websocket
 
 import (
 	"crypto/sha256"
@@ -33,7 +33,7 @@ func newWsMsgAuth(ip IP4) WsMsgAuth {
 func (m *WsMsgAuth) updateHash(password string) {
 	data := make([]byte, 0, len(password)+4+8)
 	data = append(data, []byte(password)...)
-	data = append(data, m.ip.raw[:]...)
+	data = append(data, m.ip.Bytes()...)
 	ts := make([]byte, 8)
 	binary.BigEndian.PutUint64(ts, uint64(m.timestamp))
 	data = append(data, ts...)
@@ -59,7 +59,7 @@ func (m *WsMsgAuth) check(password string) bool {
 func (m WsMsgAuth) encode() []byte {
 	out := make([]byte, 45)
 	out[0] = m.typeID
-	copy(out[1:5], m.ip.raw[:])
+	copy(out[1:5], m.ip.Bytes())
 	binary.BigEndian.PutUint64(out[5:13], uint64(m.timestamp))
 	copy(out[13:45], m.hash[:])
 	return out
@@ -71,7 +71,7 @@ func decodeWsMsgAuth(data []byte) (WsMsgAuth, bool) {
 		return m, false
 	}
 	m.typeID = data[0]
-	copy(m.ip.raw[:], data[1:5])
+	_ = m.ip.FromBytes(data[1:5])
 	m.timestamp = int64(binary.BigEndian.Uint64(data[5:13]))
 	copy(m.hash[:], data[13:45])
 	return m, true
@@ -158,9 +158,9 @@ func newWsMsgConn() WsMsgConn {
 func (m WsMsgConn) encode() []byte {
 	out := make([]byte, 15)
 	out[0] = m.typeID
-	copy(out[1:5], m.src.raw[:])
-	copy(out[5:9], m.dst.raw[:])
-	copy(out[9:13], m.ip.raw[:])
+	copy(out[1:5], m.src.Bytes())
+	copy(out[5:9], m.dst.Bytes())
+	copy(out[9:13], m.ip.Bytes())
 	binary.BigEndian.PutUint16(out[13:15], m.port)
 	return out
 }
@@ -171,9 +171,9 @@ func decodeWsMsgConn(data []byte) (WsMsgConn, bool) {
 		return m, false
 	}
 	m.typeID = data[0]
-	copy(m.src.raw[:], data[1:5])
-	copy(m.dst.raw[:], data[5:9])
-	copy(m.ip.raw[:], data[9:13])
+	_ = m.src.FromBytes(data[1:5])
+	_ = m.dst.FromBytes(data[5:9])
+	_ = m.ip.FromBytes(data[9:13])
 	m.port = binary.BigEndian.Uint16(data[13:15])
 	return m, true
 }
@@ -253,8 +253,8 @@ func newWsMsgDiscovery() WsMsgDiscovery {
 func (m WsMsgDiscovery) encode() []byte {
 	out := make([]byte, 9)
 	out[0] = m.typeID
-	copy(out[1:5], m.src.raw[:])
-	copy(out[5:9], m.dst.raw[:])
+	copy(out[1:5], m.src.Bytes())
+	copy(out[5:9], m.dst.Bytes())
 	return out
 }
 
@@ -264,8 +264,8 @@ func decodeWsMsgDiscovery(data []byte) (WsMsgDiscovery, bool) {
 		return m, false
 	}
 	m.typeID = data[0]
-	copy(m.src.raw[:], data[1:5])
-	copy(m.dst.raw[:], data[5:9])
+	_ = m.src.FromBytes(data[1:5])
+	_ = m.dst.FromBytes(data[5:9])
 	return m, true
 }
 
@@ -282,8 +282,8 @@ func (m WsMsgGeneral) encode() []byte {
 	out[0] = m.typeID
 	out[1] = m.subtype
 	binary.BigEndian.PutUint16(out[2:4], m.extra)
-	copy(out[4:8], m.src.raw[:])
-	copy(out[8:12], m.dst.raw[:])
+	copy(out[4:8], m.src.Bytes())
+	copy(out[8:12], m.dst.Bytes())
 	return out
 }
 
@@ -295,8 +295,8 @@ func decodeWsMsgGeneral(data []byte) (WsMsgGeneral, bool) {
 	m.typeID = data[0]
 	m.subtype = data[1]
 	m.extra = binary.BigEndian.Uint16(data[2:4])
-	copy(m.src.raw[:], data[4:8])
-	copy(m.dst.raw[:], data[8:12])
+	_ = m.src.FromBytes(data[4:8])
+	_ = m.dst.FromBytes(data[8:12])
 	return m, true
 }
 
@@ -319,7 +319,7 @@ func newWsMsgConnLocal() WsMsgConnLocal {
 func (m WsMsgConnLocal) encode() []byte {
 	out := make([]byte, 18)
 	copy(out[:12], m.ge.encode())
-	copy(out[12:16], m.ip.raw[:])
+	copy(out[12:16], m.ip.Bytes())
 	binary.BigEndian.PutUint16(out[16:18], m.port)
 	return out
 }
@@ -334,7 +334,7 @@ func decodeWsMsgConnLocal(data []byte) (WsMsgConnLocal, bool) {
 		return m, false
 	}
 	m.ge = ge
-	copy(m.ip.raw[:], data[12:16])
+	_ = m.ip.FromBytes(data[12:16])
 	m.port = binary.BigEndian.Uint16(data[16:18])
 	return m, true
 }
@@ -344,7 +344,7 @@ func encodeWsMsgSysRoute(entries []SysRouteEntry) []byte {
 	out[0] = WsMsgKindROUTE
 	out[1] = byte(len(entries))
 	for i, entry := range entries {
-		copy(out[4+i*12:4+(i+1)*12], entry.encode())
+		copy(out[4+i*12:4+(i+1)*12], entry.Encode())
 	}
 	return out
 }

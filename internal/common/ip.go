@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"encoding/binary"
@@ -205,16 +205,16 @@ func (a Address) empty() bool {
 }
 
 type SysRouteEntry struct {
-	dst     IP4
-	mask    IP4
-	nexthop IP4
+	Dst     IP4
+	Mask    IP4
+	Nexthop IP4
 }
 
 func (rt SysRouteEntry) encode() []byte {
 	out := make([]byte, 12)
-	copy(out[0:4], rt.dst.raw[:])
-	copy(out[4:8], rt.mask.raw[:])
-	copy(out[8:12], rt.nexthop.raw[:])
+	copy(out[0:4], rt.Dst.raw[:])
+	copy(out[4:8], rt.Mask.raw[:])
+	copy(out[8:12], rt.Nexthop.raw[:])
 	return out
 }
 
@@ -223,9 +223,9 @@ func decodeSysRouteEntry(data []byte) (SysRouteEntry, bool) {
 	if len(data) < 12 {
 		return rt, false
 	}
-	copy(rt.dst.raw[:], data[0:4])
-	copy(rt.mask.raw[:], data[4:8])
-	copy(rt.nexthop.raw[:], data[8:12])
+	copy(rt.Dst.raw[:], data[0:4])
+	copy(rt.Mask.raw[:], data[4:8])
+	copy(rt.Nexthop.raw[:], data[8:12])
 	return rt, true
 }
 

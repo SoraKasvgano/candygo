@@ -1,6 +1,6 @@
 //go:build !windows
 
-package main
+package common
 
 func isIgnorableUDPReadError(err error) bool {
 	return false

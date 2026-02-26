@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package tun
 
 import (
 	"encoding/binary"
@@ -62,7 +62,8 @@ func (t *osTun) configureAddressWindows() error {
 
 	addr := (*windows.RawSockaddrInet4)(unsafe.Pointer(&row.Address))
 	addr.Family = windows.AF_INET
-	copy(addr.Addr[:], t.ip.raw[:])
+	ipBytes := t.ip.Bytes()
+	copy(addr.Addr[:], ipBytes)
 
 	if err := createUnicastIpAddressEntry(&row); err != nil && !errors.Is(err, windows.ERROR_OBJECT_ALREADY_EXISTS) {
 		return fmt.Errorf("create unicast ip address entry failed: %w", err)
@@ -147,7 +148,7 @@ func buildWinRouteRow(ifindex uint32, dst, mask, nexthop IP4) mibIPForwardRow {
 }
 
 func ip4ToWinU32(ip IP4) uint32 {
-	return binary.LittleEndian.Uint32(ip.raw[:])
+	return binary.LittleEndian.Uint32(ip.Bytes())
 }
 
 func initializeUnicastIpAddressEntry(row *windows.MibUnicastIpAddressRow) {

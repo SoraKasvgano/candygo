@@ -1,4 +1,4 @@
-package main
+package peer
 
 import (
 	"crypto/aes"
@@ -131,7 +131,7 @@ func (p *Peer) updateState(state PeerState) bool {
 	if p.state == state {
 		return false
 	}
-	debugf("state: %s %s => %s", p.addr.toString(), p.stateString(p.state), p.stateString(state))
+	debugf("state: %s %s => %s", p.addr.ToString(), p.stateString(p.state), p.stateString(state))
 
 	if state == INIT || state == WAITING || state == FAILED {
 		p.resetState()
@@ -172,7 +172,7 @@ func (p *Peer) stateString(state PeerState) string {
 }
 
 func (p *Peer) handlePubInfo(ip IP4, port uint16, local bool) {
-	addr := &net.UDPAddr{IP: net.IPv4(ip.raw[0], ip.raw[1], ip.raw[2], ip.raw[3]), Port: int(port)}
+	addr := &net.UDPAddr{IP: net.IP(ip.Bytes()), Port: int(port)}
 	p.socketAddressMutex.Lock()
 	if local {
 		p.local = addr
@@ -191,7 +191,7 @@ func (p *Peer) handlePubInfo(ip IP4, port uint16, local bool) {
 	}
 	if p.state != CONNECTING {
 		p.updateState(PREPARING)
-		info := CoreMsgPubInfo{dst: p.addr, local: true}
+		info := CoreMsgPubInfo{Dst: p.addr, Local: true}
 		_ = p.getManager().sendPubInfo(info)
 		return
 	}
@@ -206,7 +206,7 @@ func (p *Peer) handleStunResponse() {
 	} else {
 		p.updateState(CONNECTING)
 	}
-	info := CoreMsgPubInfo{dst: p.addr}
+	info := CoreMsgPubInfo{Dst: p.addr}
 	_ = p.getManager().sendPubInfo(info)
 }
 
@@ -254,7 +254,7 @@ func (p *Peer) tick() {
 
 func (p *Peer) handleHeartbeatMessage(address *net.UDPAddr, heartbeatAck uint8) {
 	if p.state == INIT || p.state == WAITING || p.state == FAILED {
-		debugf("heartbeat peer state invalid: %s %s", p.addr.toString(), p.stateString(p.state))
+		debugf("heartbeat peer state invalid: %s %s", p.addr.ToString(), p.stateString(p.state))
 		return
 	}
 
@@ -363,7 +363,7 @@ func ipFromNetIP(ip net.IP) IP4 {
 	var out IP4
 	v4 := ip.To4()
 	if v4 != nil {
-		copy(out.raw[:], v4)
+		_ = out.FromBytes(v4)
 	}
 	return out
 }

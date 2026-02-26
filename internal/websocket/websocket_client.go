@@ -1,4 +1,4 @@
-package main
+package websocket
 
 import (
 	"crypto/tls"
@@ -141,23 +141,23 @@ func (w *WebSocketClient) run(client *Client) int {
 
 func (w *WebSocketClient) wait() int {
 	if w.msgThread != nil {
-		w.msgThread.join()
+		w.msgThread.Join()
 		w.msgThread = nil
 	}
 	if w.wsThread != nil {
-		w.wsThread.join()
+		w.wsThread.Join()
 		w.wsThread = nil
 	}
 	if w.pingThread != nil {
-		w.pingThread.join()
+		w.pingThread.Join()
 		w.pingThread = nil
 	}
 	return 0
 }
 
 func (w *WebSocketClient) handleWsQueue() {
-	msg := w.client.getWsMsgQueue().read()
-	switch msg.kind {
+	msg := w.client.getWsMsgQueue().Read()
+	switch msg.Kind {
 	case TIMEOUT:
 		return
 	case PACKET:
@@ -167,37 +167,37 @@ func (w *WebSocketClient) handleWsQueue() {
 	case DISCOVERY:
 		w.handleDiscovery(msg)
 	default:
-		warnf("unexcepted websocket message type: %d", msg.kind)
+		warnf("unexcepted websocket message type: %d", msg.Kind)
 	}
 }
 
 func (w *WebSocketClient) handlePacket(msg Msg) {
-	buffer := make([]byte, 1+len(msg.data))
+	buffer := make([]byte, 1+len(msg.Data))
 	buffer[0] = WsMsgKindFORWARD
-	copy(buffer[1:], msg.data)
+	copy(buffer[1:], msg.Data)
 	w.sendFrame(buffer, websocket.BinaryMessage)
 }
 
 func (w *WebSocketClient) handlePubInfo(msg Msg) {
-	info, ok := decodeCoreMsgPubInfo(msg.data)
+	info, ok := decodeCoreMsgPubInfo(msg.Data)
 	if !ok {
-		warnf("invalid pubinfo message size: %d", len(msg.data))
+		warnf("invalid pubinfo message size: %d", len(msg.Data))
 		return
 	}
-	if info.local {
+	if info.Local {
 		buffer := newWsMsgConnLocal()
-		buffer.ge.src = info.src
-		buffer.ge.dst = info.dst
-		buffer.ip = info.ip
-		buffer.port = info.port
+		buffer.ge.src = info.Src
+		buffer.ge.dst = info.Dst
+		buffer.ip = info.IP
+		buffer.port = info.Port
 		w.sendFrame(buffer.encode(), websocket.BinaryMessage)
 		return
 	}
 	buffer := newWsMsgConn()
-	buffer.src = info.src
-	buffer.dst = info.dst
-	buffer.ip = info.ip
-	buffer.port = info.port
+	buffer.src = info.Src
+	buffer.dst = info.Dst
+	buffer.ip = info.IP
+	buffer.port = info.Port
 	w.sendFrame(buffer.encode(), websocket.BinaryMessage)
 }
 
@@ -266,8 +266,8 @@ func (w *WebSocketClient) handleForwardMsg(buffer []byte) {
 	}
 	packet := append([]byte{}, buffer[1:]...)
 	headerSrc := ip4HeaderSAddr(packet)
-	w.client.getPeerMsgQueue().write(newMsg(TRYP2P, []byte(headerSrc.toString())))
-	w.client.getTunMsgQueue().write(newMsg(PACKET, packet))
+	w.client.getPeerMsgQueue().Write(newMsg(TRYP2P, []byte(headerSrc.ToString())))
+	w.client.getTunMsgQueue().Write(newMsg(PACKET, packet))
 }
 
 func (w *WebSocketClient) handleExptTunMsg(buffer []byte) {
@@ -277,11 +277,11 @@ func (w *WebSocketClient) handleExptTunMsg(buffer []byte) {
 		return
 	}
 	var exptTun Address
-	if exptTun.fromCidr(header.cidr) != 0 {
+	if exptTun.FromCidr(header.cidr) != 0 {
 		warnf("invalid expt tun cidr: %s", header.cidr)
 		return
 	}
-	w.tunCidr = exptTun.toCidr()
+	w.tunCidr = exptTun.ToCidr()
 	w.sendAuthMsg()
 }
 
@@ -291,8 +291,8 @@ func (w *WebSocketClient) handleUdp4ConnMsg(buffer []byte) {
 		warnf("invalid udp4conn message: len=%d", len(buffer))
 		return
 	}
-	info := CoreMsgPubInfo{src: header.src, dst: header.dst, ip: header.ip, port: header.port}
-	w.client.getPeerMsgQueue().write(newMsg(PUBINFO, info.encode()))
+	info := CoreMsgPubInfo{Src: header.src, Dst: header.dst, IP: header.ip, Port: header.port}
+	w.client.getPeerMsgQueue().Write(newMsg(PUBINFO, info.Encode()))
 }
 
 func (w *WebSocketClient) handleDiscoveryMsg(buffer []byte) {
@@ -304,7 +304,7 @@ func (w *WebSocketClient) handleDiscoveryMsg(buffer []byte) {
 	if header.dst == newIP4("255.255.255.255") {
 		w.sendDiscoveryMsg(header.src)
 	}
-	w.client.getPeerMsgQueue().write(newMsg(TRYP2P, []byte(header.src.toString())))
+	w.client.getPeerMsgQueue().Write(newMsg(TRYP2P, []byte(header.src.ToString())))
 }
 
 func (w *WebSocketClient) handleRouteMsg(buffer []byte) {
@@ -314,8 +314,8 @@ func (w *WebSocketClient) handleRouteMsg(buffer []byte) {
 		return
 	}
 	for _, rt := range entries {
-		w.client.getTunMsgQueue().write(newMsg(SYSRT, rt.encode()))
-		w.client.getPeerMsgQueue().write(newMsg(SYSRT, nil))
+		w.client.getTunMsgQueue().Write(newMsg(SYSRT, rt.Encode()))
+		w.client.getPeerMsgQueue().Write(newMsg(SYSRT, nil))
 	}
 }
 
@@ -325,8 +325,8 @@ func (w *WebSocketClient) handleGeneralMsg(buffer []byte) {
 		warnf("invalid udp4conn local message: len=%d", len(buffer))
 		return
 	}
-	info := CoreMsgPubInfo{src: header.ge.src, dst: header.ge.dst, ip: header.ip, port: header.port, local: true}
-	w.client.getPeerMsgQueue().write(newMsg(PUBINFO, info.encode()))
+	info := CoreMsgPubInfo{Src: header.ge.src, Dst: header.ge.dst, IP: header.ip, Port: header.port, Local: true}
+	w.client.getPeerMsgQueue().Write(newMsg(PUBINFO, info.Encode()))
 }
 
 func (w *WebSocketClient) sendFrame(buffer []byte, flags int) {
@@ -348,32 +348,32 @@ func (w *WebSocketClient) sendVirtualMacMsg() {
 
 func (w *WebSocketClient) sendExptTunMsg() {
 	var exptTun Address
-	_ = exptTun.fromCidr(w.exptTunCidr)
-	buffer := newWsMsgExptTun(exptTun.toCidr())
+	_ = exptTun.FromCidr(w.exptTunCidr)
+	buffer := newWsMsgExptTun(exptTun.ToCidr())
 	buffer.updateHash(w.password)
 	w.sendFrame(buffer.encode(), websocket.BinaryMessage)
 }
 
 func (w *WebSocketClient) sendAuthMsg() {
 	var address Address
-	if address.fromCidr(w.tunCidr) != 0 {
+	if address.FromCidr(w.tunCidr) != 0 {
 		warnf("invalid auth tun cidr: %s", w.tunCidr)
 		return
 	}
 	buffer := newWsMsgAuth(address.Host())
 	buffer.updateHash(w.password)
 	w.sendFrame(buffer.encode(), websocket.BinaryMessage)
-	w.client.getTunMsgQueue().write(newMsg(TUNADDR, []byte(address.toCidr())))
-	w.client.getPeerMsgQueue().write(newMsg(TUNADDR, []byte(address.toCidr())))
+	w.client.getTunMsgQueue().Write(newMsg(TUNADDR, []byte(address.ToCidr())))
+	w.client.getPeerMsgQueue().Write(newMsg(TUNADDR, []byte(address.ToCidr())))
 	if w.addressUpdateCallback != nil {
-		_ = w.addressUpdateCallback(address.toCidr())
+		_ = w.addressUpdateCallback(address.ToCidr())
 	}
 	w.sendPingMessage()
 }
 
 func (w *WebSocketClient) sendDiscoveryMsg(dst IP4) {
 	var address Address
-	if address.fromCidr(w.tunCidr) != 0 {
+	if address.FromCidr(w.tunCidr) != 0 {
 		return
 	}
 	buffer := newWsMsgDiscovery()

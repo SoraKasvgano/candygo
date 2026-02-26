@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"bufio"
@@ -10,17 +10,34 @@ import (
 	"strconv"
 	"strings"
 
+	"candygo/internal/common"
 	"github.com/spf13/pflag"
 )
 
-type arguments struct {
+type JSONObject = map[string]any
+
+var (
+	version        = common.Version
+	setNoTimestamp = common.SetNoTimestamp
+	setDebug       = common.SetDebug
+	debugf         = common.Debugf
+	infof          = common.Infof
+	warnf          = common.Warnf
+	errorf         = common.Errorf
+	criticalf      = common.Criticalf
+	create_vmac    = common.CreateVMAC
+)
+
+const VMAC_SIZE = common.VMAC_SIZE
+
+type Arguments struct {
 	mode        string
 	websocket   string
 	password    string
 	ntp         string
 	noTimestamp bool
 	debug       bool
-	initConfig  bool
+	InitConfig  bool
 
 	dhcp  string
 	sdwan string
@@ -35,8 +52,14 @@ type arguments struct {
 	mtu       int
 }
 
-func (a *arguments) json() jsonObject {
-	config := jsonObject{}
+func NewArguments() Arguments {
+	return Arguments{
+		mtu: 1400,
+	}
+}
+
+func (a *Arguments) JSON() JSONObject {
+	config := JSONObject{}
 	config["mode"] = a.mode
 	config["websocket"] = a.websocket
 	config["password"] = a.password
@@ -51,7 +74,7 @@ func (a *arguments) json() jsonObject {
 		config["mtu"] = a.mtu
 		config["port"] = a.port
 		config["vmac"] = virtualMac(a.name)
-		config["expt"] = loadTunAddress(a.name)
+		config["expt"] = LoadTunAddress(a.name)
 	}
 
 	if a.mode == "server" {
@@ -61,7 +84,7 @@ func (a *arguments) json() jsonObject {
 	return config
 }
 
-func (a *arguments) parse(args []string) int {
+func (a *Arguments) Parse(args []string) int {
 	fs := pflag.NewFlagSet("candy", pflag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 
@@ -95,19 +118,19 @@ func (a *arguments) parse(args []string) int {
 		return -1
 	}
 	if *initConfig {
-		if err := initConfigFile(*cfgFile); err != nil {
+		if err := InitConfigFile(*cfgFile); err != nil {
 			errorf("init config failed: %v", err)
 			return -1
 		}
-		a.initConfig = true
+		a.InitConfig = true
 		return 0
 	}
 
 	if *cfgFile != "" {
-		a.parseFile(*cfgFile)
+		a.ParseFile(*cfgFile)
 	} else if autoCfg := findDefaultConfig(); autoCfg != "" {
 		infof("use default config file: %s", autoCfg)
-		a.parseFile(autoCfg)
+		a.ParseFile(autoCfg)
 	}
 
 	if fs.Changed("mode") {
@@ -173,8 +196,8 @@ func (a *arguments) parse(args []string) int {
 	return 0
 }
 
-func (a *arguments) parseFile(cfgFile string) {
-	configs, err := a.fileToKvMap(cfgFile)
+func (a *Arguments) ParseFile(cfgFile string) {
+	configs, err := a.FileToKvMap(cfgFile)
 	if err != nil {
 		errorf("parse config file failed: %v", err)
 		os.Exit(1)
@@ -229,7 +252,7 @@ func (a *arguments) parseFile(cfgFile string) {
 	}
 }
 
-func (a *arguments) fileToKvMap(filename string) (map[string]string, error) {
+func (a *Arguments) FileToKvMap(filename string) (map[string]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -257,7 +280,7 @@ func (a *arguments) fileToKvMap(filename string) (map[string]string, error) {
 	return config, nil
 }
 
-func saveTunAddress(name string, cidr string) int {
+func SaveTunAddress(name string, cidr string) int {
 	cache := storageDirectory("address")
 	if name == "" {
 		name = "__noname__"
@@ -274,7 +297,7 @@ func saveTunAddress(name string, cidr string) int {
 	return 0
 }
 
-func loadTunAddress(name string) string {
+func LoadTunAddress(name string) string {
 	if name == "" {
 		name = "__noname__"
 	}
@@ -363,7 +386,7 @@ func findDefaultConfig() string {
 	return ""
 }
 
-func requireBind(value string) (string, int, error) {
+func RequireBind(value string) (string, int, error) {
 	idx := strings.LastIndex(value, ":")
 	if idx <= 0 || idx == len(value)-1 {
 		return "", 0, errors.New("invalid bind format, expected address:port")

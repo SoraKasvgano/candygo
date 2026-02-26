@@ -1,4 +1,4 @@
-package main
+package tun
 
 import (
 	"errors"
@@ -120,7 +120,7 @@ func (t *osTun) up() int {
 	}
 
 	if runtime.GOOS == "darwin" {
-		netAddr := t.ip.and(t.mask)
+		netAddr := t.ip.And(t.mask)
 		if t.setSysRtTable(netAddr, t.mask, t.ip) != 0 {
 			_ = t.down()
 			return -1
@@ -184,11 +184,11 @@ func (t *osTun) write(buffer []byte) error {
 
 func (t *osTun) setSysRtTable(dst IP4, mask IP4, nexthop IP4) int {
 	t.rtMutex.Lock()
-	t.routes = append(t.routes, SysRouteEntry{dst: dst, mask: mask, nexthop: nexthop})
+	t.routes = append(t.routes, SysRouteEntry{Dst: dst, Mask: mask, Nexthop: nexthop})
 	t.rtMutex.Unlock()
 
-	dstCIDR := fmt.Sprintf("%s/%d", dst.toString(), mask.toPrefix())
-	nhStr := nexthop.toString()
+	dstCIDR := fmt.Sprintf("%s/%d", dst.ToString(), mask.ToPrefix())
+	nhStr := nexthop.ToString()
 
 	switch runtime.GOOS {
 	case "linux":
@@ -212,13 +212,13 @@ func (t *osTun) setSysRtTable(dst IP4, mask IP4, nexthop IP4) int {
 }
 
 func (t *osTun) configureAddress() error {
-	ipStr := t.ip.toString()
-	prefix := t.mask.toPrefix()
+	ipStr := t.ip.ToString()
+	prefix := t.mask.ToPrefix()
 	switch runtime.GOOS {
 	case "linux":
 		return runCmd("ip", "addr", "replace", fmt.Sprintf("%s/%d", ipStr, prefix), "dev", t.ifname)
 	case "darwin":
-		return runCmd("ifconfig", t.ifname, "inet", ipStr, ipStr, "netmask", t.mask.toString())
+		return runCmd("ifconfig", t.ifname, "inet", ipStr, ipStr, "netmask", t.mask.ToString())
 	case "windows":
 		return t.configureAddressWindows()
 	default:
@@ -287,17 +287,17 @@ func (t *osTun) cleanupRoutes() {
 	switch runtime.GOOS {
 	case "linux":
 		for _, rt := range routes {
-			dstCIDR := fmt.Sprintf("%s/%d", rt.dst.toString(), rt.mask.toPrefix())
-			_ = runCmd("ip", "route", "del", dstCIDR, "via", rt.nexthop.toString(), "dev", t.ifname)
+			dstCIDR := fmt.Sprintf("%s/%d", rt.Dst.ToString(), rt.Mask.ToPrefix())
+			_ = runCmd("ip", "route", "del", dstCIDR, "via", rt.Nexthop.ToString(), "dev", t.ifname)
 		}
 	case "darwin":
 		for _, rt := range routes {
-			dstCIDR := fmt.Sprintf("%s/%d", rt.dst.toString(), rt.mask.toPrefix())
-			_ = runCmd("route", "-n", "delete", "-net", dstCIDR, rt.nexthop.toString())
+			dstCIDR := fmt.Sprintf("%s/%d", rt.Dst.ToString(), rt.Mask.ToPrefix())
+			_ = runCmd("route", "-n", "delete", "-net", dstCIDR, rt.Nexthop.ToString())
 		}
 	case "windows":
 		for _, rt := range routes {
-			if err := t.deleteWinRoute(rt.dst, rt.mask, rt.nexthop); err != nil {
+			if err := t.deleteWinRoute(rt.Dst, rt.Mask, rt.Nexthop); err != nil {
 				warnf("delete route failed: %v", err)
 			}
 		}

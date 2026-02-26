@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	cfg "candygo/internal/config"
 	"github.com/spf13/pflag"
 )
 
@@ -65,7 +66,7 @@ func runService(args []string) int {
 	mux.HandleFunc("/api/status", serializedAPIHandler(serviceStatusHandler))
 	mux.HandleFunc("/api/shutdown", serializedAPIHandler(serviceShutdownHandler))
 
-	host, port, err := requireBind(*bind)
+	host, port, err := cfg.RequireBind(*bind)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Invalid bind format. Use address:port (e.g., 0.0.0.0:26817): %v\n", err)
 		return 1

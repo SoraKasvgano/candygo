@@ -1,4 +1,4 @@
-package main
+package websocket
 
 import (
 	"context"
@@ -106,7 +106,7 @@ func (ws *WebSocketServer) setDHCP(cidr string) int {
 	if strings.TrimSpace(cidr) == "" {
 		return 0
 	}
-	return ws.dhcp.fromCidr(cidr)
+	return ws.dhcp.FromCidr(cidr)
 }
 
 func (ws *WebSocketServer) setSdwan(sdwan string) int {
@@ -125,19 +125,19 @@ func (ws *WebSocketServer) setSdwan(sdwan string) int {
 			return -1
 		}
 		var rt SysRoute
-		if rt.dev.fromCidr(parts[0]) != 0 || rt.dev.Host() != rt.dev.Net() {
+		if rt.dev.FromCidr(parts[0]) != 0 || rt.dev.Host() != rt.dev.Net() {
 			criticalf("invalid route device: %s", route)
 			return -1
 		}
-		if rt.dst.fromCidr(parts[1]) != 0 || rt.dst.Host() != rt.dst.Net() {
+		if rt.dst.FromCidr(parts[1]) != 0 || rt.dst.Host() != rt.dst.Net() {
 			criticalf("invalid route dest: %s", route)
 			return -1
 		}
-		if rt.next.fromString(parts[2]) != 0 {
+		if rt.next.FromString(parts[2]) != 0 {
 			criticalf("invalid route nexthop: %s", route)
 			return -1
 		}
-		infof("route: dev=%s dst=%s next=%s", rt.dev.toCidr(), rt.dst.toCidr(), rt.next.toString())
+		infof("route: dev=%s dst=%s next=%s", rt.dev.ToCidr(), rt.dst.ToCidr(), rt.next.ToString())
 		ws.routes = append(ws.routes, rt)
 	}
 	return 0
@@ -199,9 +199,9 @@ func (ws *WebSocketServer) handleAuthMsg(ctx *WsCtx) {
 	if exists {
 		oldCtx.status = -1
 		_ = oldCtx.ws.Close()
-		infof("reconnect: %s", oldCtx.ip.toString())
+		infof("reconnect: %s", oldCtx.ip.ToString())
 	} else {
-		infof("connect: %s", ctx.ip.toString())
+		infof("connect: %s", ctx.ip.ToString())
 	}
 	ws.ipCtxMap[header.ip] = ctx
 	ws.ipCtxMutex.Unlock()
@@ -210,7 +210,7 @@ func (ws *WebSocketServer) handleAuthMsg(ctx *WsCtx) {
 }
 
 func (ws *WebSocketServer) handleForwardMsg(ctx *WsCtx) {
-	if ctx.ip.empty() {
+	if ctx.ip.Empty() {
 		debugf("unauthorized forward websocket client")
 		ctx.status = -1
 		return
@@ -243,23 +243,23 @@ func (ws *WebSocketServer) handleForwardMsg(ctx *WsCtx) {
 	}
 
 	saddr := ip4HeaderSAddr(ctx.buffer[1:])
-	debugf("forward failed: source %s dest %s", saddr.toString(), daddr.toString())
+	debugf("forward failed: source %s dest %s", saddr.ToString(), daddr.ToString())
 }
 
 func (ws *WebSocketServer) isBroadcastDest(dest IP4) bool {
-	if dest.and(newIP4("240.0.0.0")) == newIP4("224.0.0.0") {
+	if dest.And(newIP4("240.0.0.0")) == newIP4("224.0.0.0") {
 		return true
 	}
 	if dest == newIP4("255.255.255.255") {
 		return true
 	}
-	if ws.dhcp.empty() {
+	if ws.dhcp.Empty() {
 		return false
 	}
-	if ws.dhcp.Mask().and(dest) != ws.dhcp.Net() {
+	if ws.dhcp.Mask().And(dest) != ws.dhcp.Net() {
 		return false
 	}
-	if !dest.and(ws.dhcp.Mask().not()).xor(ws.dhcp.Mask()).not().empty() {
+	if !dest.And(ws.dhcp.Mask().Not()).Xor(ws.dhcp.Mask()).Not().Empty() {
 		return false
 	}
 	return true
@@ -277,13 +277,13 @@ func (ws *WebSocketServer) handleExptTunMsg(ctx *WsCtx) {
 		ctx.status = -1
 		return
 	}
-	if ws.dhcp.empty() {
+	if ws.dhcp.Empty() {
 		warnf("unable to allocate dynamic address")
 		ctx.status = -1
 		return
 	}
 	var exptTun Address
-	if exptTun.fromCidr(header.cidr) != 0 {
+	if exptTun.FromCidr(header.cidr) != 0 {
 		warnf("dynamic address header cidr invalid")
 		ctx.status = -1
 		return
@@ -314,7 +314,7 @@ func (ws *WebSocketServer) handleExptTunMsg(ctx *WsCtx) {
 				return
 			}
 			_, exists := ws.ipCtxMap[exptTun.Host()]
-			if !(!exptTun.isValid() && exists) {
+			if !(!exptTun.IsValid() && exists) {
 				break
 			}
 		}
@@ -323,13 +323,13 @@ func (ws *WebSocketServer) handleExptTunMsg(ctx *WsCtx) {
 	}
 
 	header.timestamp = unixTime()
-	header.cidr = exptTun.toCidr()
+	header.cidr = exptTun.ToCidr()
 	header.updateHash(ws.password)
 	ctx.sendFrame(header.encode())
 }
 
 func (ws *WebSocketServer) handleUdp4ConnMsg(ctx *WsCtx) {
-	if ctx.ip.empty() {
+	if ctx.ip.Empty() {
 		debugf("unauthorized peer websocket client")
 		ctx.status = -1
 		return
@@ -341,7 +341,7 @@ func (ws *WebSocketServer) handleUdp4ConnMsg(ctx *WsCtx) {
 		return
 	}
 	if ctx.ip != header.src {
-		debugf("peer source address does not match: auth %s source %s", ctx.ip.toString(), header.src.toString())
+		debugf("peer source address does not match: auth %s source %s", ctx.ip.ToString(), header.src.ToString())
 		ctx.status = -1
 		return
 	}
@@ -349,7 +349,7 @@ func (ws *WebSocketServer) handleUdp4ConnMsg(ctx *WsCtx) {
 	target := ws.ipCtxMap[header.dst]
 	ws.ipCtxMutex.RUnlock()
 	if target == nil {
-		debugf("peer dest address not logged in: source %s dst %s", header.src.toString(), header.dst.toString())
+		debugf("peer dest address not logged in: source %s dst %s", header.src.ToString(), header.dst.ToString())
 		return
 	}
 	target.sendFrame(ctx.buffer)
@@ -371,7 +371,7 @@ func (ws *WebSocketServer) handleVMacMsg(ctx *WsCtx) {
 }
 
 func (ws *WebSocketServer) handleDiscoveryMsg(ctx *WsCtx) {
-	if ctx.ip.empty() {
+	if ctx.ip.Empty() {
 		debugf("unauthorized discovery websocket client")
 		ctx.status = -1
 		return
@@ -383,7 +383,7 @@ func (ws *WebSocketServer) handleDiscoveryMsg(ctx *WsCtx) {
 		return
 	}
 	if ctx.ip != header.src {
-		debugf("discovery source address does not match: auth %s source %s", ctx.ip.toString(), header.src.toString())
+		debugf("discovery source address does not match: auth %s source %s", ctx.ip.ToString(), header.src.ToString())
 		ctx.status = -1
 		return
 	}
@@ -404,7 +404,7 @@ func (ws *WebSocketServer) handleDiscoveryMsg(ctx *WsCtx) {
 }
 
 func (ws *WebSocketServer) HandleGeneralMsg(ctx *WsCtx) {
-	if ctx.ip.empty() {
+	if ctx.ip.Empty() {
 		debugf("unauthorized general websocket client")
 		ctx.status = -1
 		return
@@ -416,7 +416,7 @@ func (ws *WebSocketServer) HandleGeneralMsg(ctx *WsCtx) {
 		return
 	}
 	if ctx.ip != header.src {
-		debugf("general source address does not match: auth %s source %s", ctx.ip.toString(), header.src.toString())
+		debugf("general source address does not match: auth %s source %s", ctx.ip.ToString(), header.src.ToString())
 		ctx.status = -1
 		return
 	}
@@ -447,8 +447,8 @@ func (ws *WebSocketServer) updateSysRoute(ctx *WsCtx) {
 	}
 
 	for _, rt := range ws.routes {
-		if rt.dev.Mask().and(ctx.ip) == rt.dev.Host() {
-			entries = append(entries, SysRouteEntry{dst: rt.dst.Net(), mask: rt.dst.Mask(), nexthop: rt.next})
+		if rt.dev.Mask().And(ctx.ip) == rt.dev.Host() {
+			entries = append(entries, SysRouteEntry{Dst: rt.dst.Net(), Mask: rt.dst.Mask(), Nexthop: rt.next})
 		}
 		if len(entries) > 100 {
 			flush()
@@ -494,7 +494,7 @@ func (ws *WebSocketServer) handleWebsocket(conn *websocket.Conn) {
 		ws.ipCtxMutex.Lock()
 		if old, ok := ws.ipCtxMap[ctx.ip]; ok && old == ctx {
 			delete(ws.ipCtxMap, ctx.ip)
-			infof("disconnect: %s", ctx.ip.toString())
+			infof("disconnect: %s", ctx.ip.ToString())
 		}
 		ws.ipCtxMutex.Unlock()
 		_ = conn.Close()

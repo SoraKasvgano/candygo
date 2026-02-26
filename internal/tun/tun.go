@@ -1,4 +1,4 @@
-package main
+package tun
 
 import (
 	"runtime"
@@ -16,26 +16,6 @@ type Tun struct {
 
 	impl   *osTun
 	client *Client
-}
-
-type Thread struct {
-	done chan struct{}
-}
-
-func newThread(fn func()) *Thread {
-	t := &Thread{done: make(chan struct{})}
-	go func() {
-		defer close(t.done)
-		fn()
-	}()
-	return t
-}
-
-func (t *Thread) join() {
-	if t == nil {
-		return
-	}
-	<-t.done
 }
 
 func (t *Tun) ensureImpl() {
@@ -72,11 +52,11 @@ func (t *Tun) run(client *Client) int {
 
 func (t *Tun) wait() int {
 	if t.tunThread != nil {
-		t.tunThread.join()
+		t.tunThread.Join()
 		t.tunThread = nil
 	}
 	if t.msgThread != nil {
-		t.msgThread.join()
+		t.msgThread.Join()
 		t.msgThread = nil
 	}
 	t.sysRtMutex.Lock()
@@ -93,15 +73,15 @@ func (t *Tun) getIP() IP4 {
 func (t *Tun) setAddress(cidr string) int {
 	t.ensureImpl()
 	var address Address
-	if address.fromCidr(cidr) != 0 {
+	if address.FromCidr(cidr) != 0 {
 		return -1
 	}
-	infof("client address: %s", address.toCidr())
+	infof("client address: %s", address.ToCidr())
 	if t.impl.setIP(address.Host()) != 0 {
 		return -1
 	}
 	if runtime.GOOS == "windows" {
-		if t.impl.setPrefix(address.Mask().toPrefix()) != 0 {
+		if t.impl.setPrefix(address.Mask().ToPrefix()) != 0 {
 			return -1
 		}
 	} else {
@@ -136,14 +116,14 @@ func (t *Tun) handleTunDevice() int {
 		t.sysRtMutex.RLock()
 		defer t.sysRtMutex.RUnlock()
 		for _, rt := range t.sysRtTable {
-			if headerDst.and(rt.mask) == rt.dst {
-				return rt.nexthop
+			if headerDst.And(rt.Mask) == rt.Dst {
+				return rt.Nexthop
 			}
 		}
 		return IP4{}
 	}()
 
-	if !nextHop.empty() {
+	if !nextHop.Empty() {
 		buffer = packIPIP(buffer, t.getIP(), nextHop)
 		headerDst = ip4HeaderDAddr(buffer)
 	}
@@ -153,13 +133,13 @@ func (t *Tun) handleTunDevice() int {
 		return 0
 	}
 
-	t.client.getPeerMsgQueue().write(newMsg(PACKET, buffer))
+	t.client.getPeerMsgQueue().Write(newMsg(PACKET, buffer))
 	return 0
 }
 
 func (t *Tun) handleTunQueue() int {
-	msg := t.client.getTunMsgQueue().read()
-	switch msg.kind {
+	msg := t.client.getTunMsgQueue().Read()
+	switch msg.Kind {
 	case TIMEOUT:
 		return 0
 	case PACKET:
@@ -169,17 +149,17 @@ func (t *Tun) handleTunQueue() int {
 	case SYSRT:
 		return t.handleSysRt(msg)
 	default:
-		warnf("unexcepted tun message type: %d", msg.kind)
+		warnf("unexcepted tun message type: %d", msg.Kind)
 	}
 	return 0
 }
 
 func (t *Tun) handlePacket(msg Msg) int {
-	if len(msg.data) < ip4HeaderSize {
-		warnf("invalid IPv4 packet size: %d", len(msg.data))
+	if len(msg.Data) < ip4HeaderSize {
+		warnf("invalid IPv4 packet size: %d", len(msg.Data))
 		return 0
 	}
-	data := msg.data
+	data := msg.Data
 	if ip4HeaderIsIPIP(data) {
 		if len(data) < ip4HeaderSize {
 			return 0
@@ -191,7 +171,7 @@ func (t *Tun) handlePacket(msg Msg) int {
 }
 
 func (t *Tun) handleTunAddr(msg Msg) int {
-	if t.setAddress(string(msg.data)) != 0 {
+	if t.setAddress(string(msg.Data)) != 0 {
 		return -1
 	}
 	if t.up() != 0 {
@@ -218,13 +198,13 @@ func (t *Tun) handleTunAddr(msg Msg) int {
 }
 
 func (t *Tun) handleSysRt(msg Msg) int {
-	rt, ok := decodeSysRouteEntry(msg.data)
+	rt, ok := decodeSysRouteEntry(msg.Data)
 	if !ok {
-		warnf("invalid route message size: %d", len(msg.data))
+		warnf("invalid route message size: %d", len(msg.Data))
 		return 0
 	}
-	if rt.nexthop != t.getIP() {
-		infof("route: %s/%d via %s", rt.dst.toString(), rt.mask.toPrefix(), rt.nexthop.toString())
+	if rt.Nexthop != t.getIP() {
+		infof("route: %s/%d via %s", rt.Dst.ToString(), rt.Mask.ToPrefix(), rt.Nexthop.ToString())
 		if t.setSysRtTable(rt) != 0 {
 			return -1
 		}
@@ -236,7 +216,7 @@ func (t *Tun) setSysRtTable(entry SysRouteEntry) int {
 	t.sysRtMutex.Lock()
 	t.sysRtTable = append(t.sysRtTable, entry)
 	t.sysRtMutex.Unlock()
-	return t.impl.setSysRtTable(entry.dst, entry.mask, entry.nexthop)
+	return t.impl.setSysRtTable(entry.Dst, entry.Mask, entry.Nexthop)
 }
 
 func (t *Tun) getClient() *Client {

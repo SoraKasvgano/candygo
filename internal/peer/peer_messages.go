@@ -1,4 +1,4 @@
-package main
+package peer
 
 import (
 	"encoding/binary"
@@ -49,8 +49,8 @@ type PeerMsgHeartbeat struct {
 func (m PeerMsgHeartbeat) encode() []byte {
 	out := make([]byte, 12)
 	out[0] = m.kind
-	copy(out[1:5], m.tunip.raw[:])
-	copy(out[5:9], m.ip.raw[:])
+	copy(out[1:5], m.tunip.Bytes())
+	copy(out[5:9], m.ip.Bytes())
 	binary.BigEndian.PutUint16(out[9:11], m.port)
 	out[11] = m.ack
 	return out
@@ -62,8 +62,8 @@ func decodePeerMsgHeartbeat(data []byte) (PeerMsgHeartbeat, bool) {
 		return m, false
 	}
 	m.kind = data[0]
-	copy(m.tunip.raw[:], data[1:5])
-	copy(m.ip.raw[:], data[5:9])
+	_ = m.tunip.FromBytes(data[1:5])
+	_ = m.ip.FromBytes(data[5:9])
 	m.port = binary.BigEndian.Uint16(data[9:11])
 	m.ack = data[11]
 	return m, true
@@ -79,8 +79,8 @@ type PeerMsgDelay struct {
 func (m PeerMsgDelay) encode() []byte {
 	out := make([]byte, 17)
 	out[0] = m.typeID
-	copy(out[1:5], m.src.raw[:])
-	copy(out[5:9], m.dst.raw[:])
+	copy(out[1:5], m.src.Bytes())
+	copy(out[5:9], m.dst.Bytes())
 	binary.BigEndian.PutUint64(out[9:17], uint64(m.timestamp))
 	return out
 }
@@ -91,8 +91,8 @@ func decodePeerMsgDelay(data []byte) (PeerMsgDelay, bool) {
 		return m, false
 	}
 	m.typeID = data[0]
-	copy(m.src.raw[:], data[1:5])
-	copy(m.dst.raw[:], data[5:9])
+	_ = m.src.FromBytes(data[1:5])
+	_ = m.dst.FromBytes(data[5:9])
 	m.timestamp = int64(binary.BigEndian.Uint64(data[9:17]))
 	return m, true
 }
@@ -107,8 +107,8 @@ type PeerMsgRoute struct {
 func (m PeerMsgRoute) encode() []byte {
 	out := make([]byte, 13)
 	out[0] = m.typeID
-	copy(out[1:5], m.dst.raw[:])
-	copy(out[5:9], m.next.raw[:])
+	copy(out[1:5], m.dst.Bytes())
+	copy(out[5:9], m.next.Bytes())
 	binary.BigEndian.PutUint32(out[9:13], uint32(m.rtt))
 	return out
 }
@@ -119,8 +119,8 @@ func decodePeerMsgRoute(data []byte) (PeerMsgRoute, bool) {
 		return m, false
 	}
 	m.typeID = data[0]
-	copy(m.dst.raw[:], data[1:5])
-	copy(m.next.raw[:], data[5:9])
+	_ = m.dst.FromBytes(data[1:5])
+	_ = m.next.FromBytes(data[5:9])
 	m.rtt = int32(binary.BigEndian.Uint32(data[9:13]))
 	return m, true
 }

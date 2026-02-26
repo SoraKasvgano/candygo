@@ -92,16 +92,28 @@ Default persistent mounts in compose:
 
 ## Project map
 
-Key files:
+Key directories and files:
 
 - entry and mode dispatch: `main.go`
-- facade/API: `candy_api.go`
-- client/server core: `client_core.go`, `server_core.go`
-- websocket protocol: `websocket_messages.go`, `websocket_client.go`, `websocket_server.go`
-- p2p/routing: `peer_messages.go`, `peer.go`, `peer_manager.go`
-- tun and routes: `tun.go`, `tun_impl.go`, `tun_windows_api.go`
-- config and persistence: `config.go`
-- service HTTP API: `service.go`
+- app facade + lifecycle: `internal/app/`
+  - API facade: `internal/app/candy_api.go`
+  - client/server core: `internal/app/client_core.go`, `internal/app/server_core.go`
+  - service HTTP API: `internal/app/service.go`
+- config and persistence: `internal/config/`
+  - config parse/load/save: `internal/config/config.go`
+  - init template (`--init-config`): `internal/config/initconfig.go`
+- websocket protocol and transport: `internal/websocket/`
+  - websocket messages: `internal/websocket/websocket_messages.go`
+  - websocket client/server: `internal/websocket/websocket_client.go`, `internal/websocket/websocket_server.go`
+- p2p/routing: `internal/peer/`
+  - peer messages: `internal/peer/peer_messages.go`
+  - peer state machine + manager: `internal/peer/peer.go`, `internal/peer/peer_manager.go`
+- tun and routes: `internal/tun/`
+  - tun core: `internal/tun/tun.go`
+  - os implementation: `internal/tun/tun_impl.go`, `internal/tun/tun_windows_api.go`
+- shared primitives/utilities: `internal/common/`
+  - logging/time/version: `internal/common/constants.go`, `internal/common/random_time.go`
+  - ip/message/core types: `internal/common/ip.go`, `internal/common/message.go`
 
 ## License
 

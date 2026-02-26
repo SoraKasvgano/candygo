@@ -1,4 +1,4 @@
-package main
+package peer
 
 import (
 	"crypto/aes"
@@ -134,7 +134,7 @@ func (p *PeerManager) setPort(port int) int {
 }
 
 func (p *PeerManager) setLocalhost(ip string) int {
-	_ = p.localhost.fromString(ip)
+	_ = p.localhost.FromString(ip)
 	return 0
 }
 
@@ -169,15 +169,15 @@ func (p *PeerManager) run(client *Client) int {
 
 func (p *PeerManager) wait() int {
 	if p.msgThread != nil {
-		p.msgThread.join()
+		p.msgThread.Join()
 		p.msgThread = nil
 	}
 	if p.tickThread != nil {
-		p.tickThread.join()
+		p.tickThread.Join()
 		p.tickThread = nil
 	}
 	if p.pollThread != nil {
-		p.pollThread.join()
+		p.pollThread.Join()
 		p.pollThread = nil
 	}
 
@@ -202,8 +202,8 @@ func (p *PeerManager) getPassword() string {
 }
 
 func (p *PeerManager) handlePeerQueue() int {
-	msg := p.getClient().getPeerMsgQueue().read()
-	switch msg.kind {
+	msg := p.getClient().getPeerMsgQueue().Read()
+	switch msg.Kind {
 	case TIMEOUT:
 		return 0
 	case PACKET:
@@ -223,7 +223,7 @@ func (p *PeerManager) handlePeerQueue() int {
 	case PUBINFO:
 		_ = p.handlePubInfo(msg)
 	default:
-		warnf("unexcepted peer message type: %d", msg.kind)
+		warnf("unexcepted peer message type: %d", msg.Kind)
 	}
 	return 0
 }
@@ -244,7 +244,7 @@ func (p *PeerManager) sendPacketDirect(dst IP4, msg Msg) int {
 	p.ipPeerMutex.RUnlock()
 	if peer != nil {
 		if _, ok := peer.isConnected(); ok {
-			return peer.sendEncrypted(createPeerForward(msg.data))
+			return peer.sendEncrypted(createPeerForward(msg.Data))
 		}
 	}
 	return -1
@@ -261,19 +261,19 @@ func (p *PeerManager) sendPacketRelay(dst IP4, msg Msg) int {
 }
 
 func (p *PeerManager) sendPubInfo(info CoreMsgPubInfo) int {
-	info.src = p.getClient().address()
-	if info.local {
-		info.ip = p.localhost
+	info.Src = p.getClient().address()
+	if info.Local {
+		info.IP = p.localhost
 		if p.socket != nil {
 			if addr, ok := p.socket.LocalAddr().(*net.UDPAddr); ok {
-				info.port = uint16(addr.Port)
+				info.Port = uint16(addr.Port)
 			}
 		}
 	} else {
-		info.ip = p.stun.ip
-		info.port = p.stun.port
+		info.IP = p.stun.ip
+		info.Port = p.stun.port
 	}
-	p.getClient().getWsMsgQueue().write(newMsg(PUBINFO, info.encode()))
+	p.getClient().getWsMsgQueue().Write(newMsg(PUBINFO, info.Encode()))
 	return 0
 }
 
@@ -282,20 +282,20 @@ func (p *PeerManager) getTunIp() IP4 {
 }
 
 func (p *PeerManager) handlePacket(msg Msg) int {
-	if len(msg.data) < ip4HeaderSize {
+	if len(msg.Data) < ip4HeaderSize {
 		return 0
 	}
-	dst := ip4HeaderDAddr(msg.data)
+	dst := ip4HeaderDAddr(msg.Data)
 	if p.sendPacket(dst, msg) == 0 {
 		return 0
 	}
-	p.getClient().getWsMsgQueue().write(msg)
+	p.getClient().getWsMsgQueue().Write(msg)
 	return 0
 }
 
 func (p *PeerManager) handleTunAddr(msg Msg) int {
-	if p.tunAddr.fromCidr(string(msg.data)) != 0 {
-		errorf("set tun addr failed: %s", string(msg.data))
+	if p.tunAddr.FromCidr(string(msg.Data)) != 0 {
+		errorf("set tun addr failed: %s", string(msg.Data))
 		return -1
 	}
 	data := make([]byte, 0, len(p.password)+4)
@@ -309,7 +309,7 @@ func (p *PeerManager) handleTunAddr(msg Msg) int {
 
 func (p *PeerManager) handleTryP2P(msg Msg) int {
 	var src IP4
-	if src.fromString(string(msg.data)) != 0 {
+	if src.FromString(string(msg.Data)) != 0 {
 		return -1
 	}
 
@@ -332,40 +332,40 @@ func (p *PeerManager) handleTryP2P(msg Msg) int {
 }
 
 func (p *PeerManager) handlePubInfo(msg Msg) int {
-	info, ok := decodeCoreMsgPubInfo(msg.data)
+	info, ok := decodeCoreMsgPubInfo(msg.Data)
 	if !ok {
-		warnf("invalid public info size: %d", len(msg.data))
+		warnf("invalid public info size: %d", len(msg.Data))
 		return 0
 	}
 
-	if info.src == p.getClient().address() || info.dst != p.getClient().address() {
-		warnf("invalid public info: src=[%s] dst=[%s]", info.src.toString(), info.dst.toString())
+	if info.Src == p.getClient().address() || info.Dst != p.getClient().address() {
+		warnf("invalid public info: src=[%s] dst=[%s]", info.Src.ToString(), info.Dst.ToString())
 		return 0
 	}
 
 	p.ipPeerMutex.RLock()
-	peer := p.ipPeerMap[info.src]
+	peer := p.ipPeerMap[info.Src]
 	p.ipPeerMutex.RUnlock()
 	if peer != nil {
-		peer.handlePubInfo(info.ip, info.port, info.local)
+		peer.handlePubInfo(info.IP, info.Port, info.Local)
 		return 0
 	}
 
 	p.ipPeerMutex.Lock()
-	if p.ipPeerMap[info.src] == nil {
-		p.ipPeerMap[info.src] = newPeer(info.src, p)
+	if p.ipPeerMap[info.Src] == nil {
+		p.ipPeerMap[info.Src] = newPeer(info.Src, p)
 	}
-	peer = p.ipPeerMap[info.src]
+	peer = p.ipPeerMap[info.Src]
 	p.ipPeerMutex.Unlock()
-	peer.handlePubInfo(info.ip, info.port, info.local)
+	peer.handlePubInfo(info.IP, info.Port, info.Local)
 	return 0
 }
 
 func (p *PeerManager) startTickThread(excludeIP IP4) int {
-	if p.localhost.empty() {
+	if p.localhost.Empty() {
 		if local, err := detectLocalIPv4(excludeIP); err == nil {
 			p.localhost = local
-			debugf("localhost: %s", p.localhost.toString())
+			debugf("localhost: %s", p.localhost.ToString())
 		}
 	}
 
@@ -392,11 +392,11 @@ func (p *PeerManager) startTickThread(excludeIP IP4) int {
 
 func extractTunHostFromMsg(msg Msg) IP4 {
 	var excludeIP IP4
-	if len(msg.data) == 0 {
+	if len(msg.Data) == 0 {
 		return excludeIP
 	}
 	var addr Address
-	if addr.fromCidr(string(msg.data)) != 0 {
+	if addr.FromCidr(string(msg.Data)) != 0 {
 		return excludeIP
 	}
 	return addr.Host()
@@ -406,7 +406,7 @@ func (p *PeerManager) tick() int {
 	if p.discoveryInterval > 0 && p.stun.enabled() {
 		p.tickTick++
 		if p.tickTick%uint64(p.discoveryInterval) == 0 {
-			p.getClient().getWsMsgQueue().write(newMsg(DISCOVERY, nil))
+			p.getClient().getWsMsgQueue().Write(newMsg(DISCOVERY, nil))
 		}
 	}
 
@@ -507,7 +507,7 @@ func (p *PeerManager) handleStunResponse(buffer []byte) {
 		warnf("stun response parse failed")
 		return
 	}
-	p.stun.ip.fromUint32(ip)
+	p.stun.ip.FromUint32(ip)
 	p.stun.port = port
 
 	p.ipPeerMutex.RLock()
@@ -549,7 +549,7 @@ func (p *PeerManager) handleHeartbeatMessage(buffer []byte, address *net.UDPAddr
 	peer := p.ipPeerMap[heartbeat.tunip]
 	p.ipPeerMutex.RUnlock()
 	if peer == nil {
-		debugf("udp4 heartbeat find peer failed: tun ip %s", heartbeat.tunip.toString())
+		debugf("udp4 heartbeat find peer failed: tun ip %s", heartbeat.tunip.ToString())
 		return
 	}
 	peer.handleHeartbeatMessage(address, heartbeat.ack)
@@ -563,9 +563,9 @@ func (p *PeerManager) handleForwardMessage(buffer []byte, _ *net.UDPAddr) {
 	packet := append([]byte{}, buffer[1:]...)
 	headerDst := ip4HeaderDAddr(packet)
 	if headerDst == p.getTunIp() {
-		p.getClient().getTunMsgQueue().write(newMsg(PACKET, packet))
+		p.getClient().getTunMsgQueue().Write(newMsg(PACKET, packet))
 	} else {
-		p.getClient().getPeerMsgQueue().write(newMsg(PACKET, packet))
+		p.getClient().getPeerMsgQueue().Write(newMsg(PACKET, packet))
 	}
 }
 
@@ -708,7 +708,7 @@ func (p *PeerManager) showRtChange(entry PeerRouteEntry) {
 	if entry.rtt != RTT_LIMIT {
 		rtt = fmt.Sprintf("%d", entry.rtt)
 	}
-	debugf("route: dst=%s next=%s delay=%s", entry.dst.toString(), entry.next.toString(), rtt)
+	debugf("route: dst=%s next=%s delay=%s", entry.dst.ToString(), entry.next.ToString(), rtt)
 }
 
 func (p *PeerManager) sendRtMessage(dst IP4, rtt int32) int {
@@ -822,7 +822,7 @@ func detectLocalIPv4(excludeIP IP4) (IP4, error) {
 				if ip == nil || !ip.IsGlobalUnicast() {
 					continue
 				}
-				if !excludeIP.empty() && ip.Equal(net.IP(excludeIP.raw[:])) {
+				if !excludeIP.Empty() && ip.Equal(net.IP(excludeIP.Bytes())) {
 					debugf("localhost skip tun ip: iface=%s ip=%s", iface.Name, ip.String())
 					continue
 				}
@@ -843,7 +843,7 @@ func detectLocalIPv4(excludeIP IP4) (IP4, error) {
 	if best == nil {
 		return out, fmt.Errorf("no suitable local ip")
 	}
-	copy(out.raw[:], best.ip.To4())
+	_ = out.FromBytes(best.ip.To4())
 	debugf("localhost selected: iface=%s ip=%s score=%d", best.iface, best.ip.String(), best.score)
 	return out, nil
 }

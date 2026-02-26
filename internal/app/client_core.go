@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"sync/atomic"
@@ -28,8 +28,8 @@ func newClient() *Client {
 
 func (c *Client) setName(name string) {
 	c.tunName = name
-	_ = c.tun.setName(name)
-	_ = c.ws.setName(name)
+	_ = c.tun.SetName(name)
+	_ = c.ws.SetName(name)
 }
 
 func (c *Client) getName() string {
@@ -37,11 +37,11 @@ func (c *Client) getName() string {
 }
 
 func (c *Client) getTunCidr() string {
-	return c.ws.getTunCidr()
+	return c.ws.GetTunCidr()
 }
 
 func (c *Client) address() IP4 {
-	return c.tun.getIP()
+	return c.tun.GetIP()
 }
 
 func (c *Client) getTunMsgQueue() *MsgQueue {
@@ -57,70 +57,70 @@ func (c *Client) getWsMsgQueue() *MsgQueue {
 }
 
 func (c *Client) setPassword(password string) {
-	_ = c.ws.setPassword(password)
-	_ = c.peerManager.setPassword(password)
+	_ = c.ws.SetPassword(password)
+	_ = c.peerManager.SetPassword(password)
 }
 
 func (c *Client) setWebSocket(uri string) {
-	_ = c.ws.setWsServerUri(uri)
+	_ = c.ws.SetWsServerURI(uri)
 }
 
 func (c *Client) setTunAddress(cidr string) {
-	_ = c.ws.setAddress(cidr)
+	_ = c.ws.SetAddress(cidr)
 }
 
 func (c *Client) setExptTunAddress(cidr string) {
-	_ = c.ws.setExptTunAddress(cidr)
+	_ = c.ws.SetExptTunAddress(cidr)
 }
 
 func (c *Client) setVirtualMac(vmac string) {
-	_ = c.ws.setVirtualMac(vmac)
+	_ = c.ws.SetVirtualMac(vmac)
 }
 
 func (c *Client) setStun(stun string) {
-	_ = c.peerManager.setStun(stun)
+	_ = c.peerManager.SetStun(stun)
 }
 
 func (c *Client) setDiscoveryInterval(interval int) {
-	_ = c.peerManager.setDiscoveryInterval(interval)
+	_ = c.peerManager.SetDiscoveryInterval(interval)
 }
 
 func (c *Client) setRouteCost(cost int) {
-	_ = c.peerManager.setRouteCost(cost)
+	_ = c.peerManager.SetRouteCost(cost)
 }
 
 func (c *Client) setPort(port int) {
-	_ = c.peerManager.setPort(port)
+	_ = c.peerManager.SetPort(port)
 }
 
 func (c *Client) setLocalhost(ip string) {
-	_ = c.peerManager.setLocalhost(ip)
+	_ = c.peerManager.SetLocalhost(ip)
 }
 
 func (c *Client) setMtu(mtu int) {
-	_ = c.tun.setMTU(mtu)
+	_ = c.tun.SetMTU(mtu)
 }
 
 func (c *Client) run() {
 	c.running.Store(true)
 
-	if c.ws.run(c) != 0 {
+	if c.ws.Run(c) != 0 {
 		return
 	}
-	if c.tun.run(c) != 0 {
+	if c.tun.Run(c) != 0 {
 		return
 	}
-	if c.peerManager.run(c) != 0 {
+	if c.peerManager.Run(c) != 0 {
 		return
 	}
 
-	_ = c.ws.wait()
-	_ = c.tun.wait()
-	_ = c.peerManager.wait()
+	_ = c.ws.Wait()
+	_ = c.tun.Wait()
+	_ = c.peerManager.Wait()
 
-	c.wsMsgQueue.clear()
-	c.tunMsgQueue.clear()
-	c.peerMsgQueue.clear()
+	c.wsMsgQueue.Clear()
+	c.tunMsgQueue.Clear()
+	c.peerMsgQueue.Clear()
 }
 
 func (c *Client) isRunning() bool {
@@ -129,5 +129,29 @@ func (c *Client) isRunning() bool {
 
 func (c *Client) shutdown() {
 	c.running.Store(false)
-	_ = c.tun.down()
+	_ = c.tun.Down()
+}
+
+func (c *Client) IsRunning() bool {
+	return c.isRunning()
+}
+
+func (c *Client) Shutdown() {
+	c.shutdown()
+}
+
+func (c *Client) GetTunMsgQueue() *MsgQueue {
+	return c.getTunMsgQueue()
+}
+
+func (c *Client) GetPeerMsgQueue() *MsgQueue {
+	return c.getPeerMsgQueue()
+}
+
+func (c *Client) GetWsMsgQueue() *MsgQueue {
+	return c.getWsMsgQueue()
+}
+
+func (c *Client) Address() IP4 {
+	return c.address()
 }
