@@ -28,3 +28,4 @@ dist/candygo-linux-armv8
 dist/candygo-linux-armv7
 dist/candygo-linux-amd64
 AGENTS.md
+dist/run.bat
