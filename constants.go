@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	CANDY_VERSION = "6.1.6-go"
+	CANDY_VERSION = "6.1.7-go"
 	VMAC_SIZE     = 16
 )
 

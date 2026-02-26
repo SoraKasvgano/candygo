@@ -150,6 +150,11 @@ func (p *PeerManager) run(client *Client) int {
 	}
 
 	p.msgThread = newThread(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				warnf("peer manager handle queue panic: %v", r)
+			}
+		}()
 		debugf("start thread: peer manager msg")
 		for p.getClient().isRunning() {
 			if p.handlePeerQueue() != 0 {
