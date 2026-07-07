@@ -9,7 +9,12 @@ type Thread struct {
 func NewThread(fn func()) *Thread {
 	t := &Thread{done: make(chan struct{})}
 	go func() {
-		defer close(t.done)
+		defer func() {
+			if r := recover(); r != nil {
+				warnf("thread panic: %v", r)
+			}
+			close(t.done)
+		}()
 		fn()
 	}()
 	return t

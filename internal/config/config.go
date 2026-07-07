@@ -38,6 +38,7 @@ type Arguments struct {
 	noTimestamp bool
 	debug       bool
 	InitConfig  bool
+	ShowHelp    bool
 
 	dhcp  string
 	sdwan string
@@ -87,6 +88,9 @@ func (a *Arguments) JSON() JSONObject {
 func (a *Arguments) Parse(args []string) int {
 	fs := pflag.NewFlagSet("candy", pflag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
+	fs.Usage = func() {
+		fmt.Print(cliUsage())
+	}
 
 	cfgFile := fs.StringP("config", "c", "", "config file path")
 	mode := fs.StringP("mode", "m", "", "working mode")
@@ -109,13 +113,13 @@ func (a *Arguments) Parse(args []string) int {
 	help := fs.BoolP("help", "h", false, "show help")
 
 	if err := fs.Parse(args); err != nil {
-		fmt.Print(fs.FlagUsages())
+		fs.Usage()
 		return -1
 	}
 	if *help {
-		fmt.Printf("candy %s\n", version())
-		fmt.Print(fs.FlagUsages())
-		return -1
+		fs.Usage()
+		a.ShowHelp = true
+		return 0
 	}
 	if *initConfig {
 		if err := InitConfigFile(*cfgFile); err != nil {
@@ -187,13 +191,67 @@ func (a *Arguments) Parse(args []string) int {
 		needShowUsage = true
 	}
 	if needShowUsage {
-		fmt.Print(fs.FlagUsages())
+		fs.Usage()
 		return -1
 	}
 
 	setNoTimestamp(a.noTimestamp)
 	setDebug(a.debug)
 	return 0
+}
+
+func cliUsage() string {
+	return fmt.Sprintf(`candy %s
+
+A simple P2P VPN / SD-WAN networking tool.
+
+Usage:
+  candy [options]
+  candy service [service options]
+
+Client and server:
+  -c, --config <path>       Config file path (key=value format, same keys as CLI args).
+  -m, --mode <mode>         Working mode: "client" or "server".
+  -w, --websocket <url>     WebSocket signaling address, for example "ws://host:port/ws".
+                             Client supports ws:// and wss://; server supports ws:// only.
+  -p, --password <secret>   Pre-shared key for authentication and P2P encryption.
+                             Password hashes are sent, not the plaintext password.
+      --ntp <url>           NTP server address (compatibility field).
+      --init-config         Write a template config file and exit.
+  -h, --help                Show help.
+
+Client options:
+  -n, --name <iface>        TUN interface name suffix. Useful when running multiple clients.
+  -t, --tun <cidr>          Static TUN address, for example "192.168.202.1/24".
+                             If omitted, the client requests a dynamic address from the server via DHCP.
+  -s, --stun <url>          STUN server address, for example "stun://stun.example.org".
+                             If omitted, public internet P2P discovery is disabled.
+      --port <int>          Local UDP port for P2P communication. Default is 0 (random OS port).
+      --mtu <int>           Maximum transmission unit for the TUN device. Default is 1400.
+  -r, --route <int>         Routing cost (0-1000). Default is 0 (relay disabled).
+      --discovery <int>     Periodic P2P discovery interval in seconds. Default is 0 (disabled).
+      --localhost <ip>      Local IPv4 address used for P2P peering; auto-detected if omitted.
+
+Server options:
+  -d, --dhcp <cidr>         DHCP address pool, for example "192.168.202.0/24".
+                             If omitted, clients must use a static --tun address.
+      --sdwan <rules>       Software-defined routing rules.
+                             Format: "dev_cidr,dst_cidr,nexthop;..." (semicolon-separated).
+
+Logging options:
+      --no-timestamp        Omit timestamps from log output.
+      --debug               Enable debug-level logging.
+
+Examples:
+  Client with static address:
+    candy -m client -w wss://server.example.com/ws -p mysecret -t 192.168.202.1/24
+  Client with DHCP:
+    candy -m client -w wss://server.example.com/ws -p mysecret -s stun://stun.example.com
+  Server:
+    candy -m server -w ws://0.0.0.0:8080/ws -p mysecret -d 192.168.202.0/24
+  Using config file:
+    candy -c candy.cfg
+`, version())
 }
 
 func (a *Arguments) ParseFile(cfgFile string) {

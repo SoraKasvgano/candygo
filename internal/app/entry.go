@@ -21,7 +21,7 @@ func Main() {
 	if args.Parse(os.Args[1:]) != 0 {
 		os.Exit(1)
 	}
-	if args.InitConfig {
+	if args.InitConfig || args.ShowHelp {
 		return
 	}
 	config := args.JSON()

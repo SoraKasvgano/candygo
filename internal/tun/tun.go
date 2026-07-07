@@ -39,13 +39,18 @@ func (t *Tun) run(client *Client) int {
 	t.client = client
 	t.msgThread = newThread(func() {
 		debugf("start thread: tun msg")
+		defer func() {
+			if r := recover(); r != nil {
+				warnf("tun msg thread panic: %v", r)
+			}
+			t.getClient().shutdown()
+			debugf("stop thread: tun msg")
+		}()
 		for t.getClient().isRunning() {
 			if t.handleTunQueue() != 0 {
 				break
 			}
 		}
-		t.getClient().shutdown()
-		debugf("stop thread: tun msg")
 	})
 	return 0
 }
@@ -181,16 +186,21 @@ func (t *Tun) handleTunAddr(msg Msg) int {
 
 	t.tunThread = newThread(func() {
 		debugf("start thread: tun")
+		defer func() {
+			if r := recover(); r != nil {
+				warnf("tun thread panic: %v", r)
+			}
+			t.getClient().shutdown()
+			debugf("stop thread: tun")
+
+			if t.down() != 0 {
+				criticalf("tun down failed")
+			}
+		}()
 		for t.getClient().isRunning() {
 			if t.handleTunDevice() != 0 {
 				break
 			}
-		}
-		t.getClient().shutdown()
-		debugf("stop thread: tun")
-
-		if t.down() != 0 {
-			criticalf("tun down failed")
 		}
 	})
 

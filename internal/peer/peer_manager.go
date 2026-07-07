@@ -150,19 +150,19 @@ func (p *PeerManager) run(client *Client) int {
 	}
 
 	p.msgThread = newThread(func() {
+		debugf("start thread: peer manager msg")
 		defer func() {
 			if r := recover(); r != nil {
-				warnf("peer manager handle queue panic: %v", r)
+				warnf("peer manager msg thread panic: %v", r)
 			}
+			p.getClient().shutdown()
+			debugf("stop thread: peer manager msg")
 		}()
-		debugf("start thread: peer manager msg")
 		for p.getClient().isRunning() {
 			if p.handlePeerQueue() != 0 {
 				break
 			}
 		}
-		p.getClient().shutdown()
-		debugf("stop thread: peer manager msg")
 	})
 	return 0
 }
@@ -377,6 +377,13 @@ func (p *PeerManager) startTickThread(excludeIP IP4) int {
 	}
 	p.tickThread = newThread(func() {
 		debugf("start thread: peer manager tick")
+		defer func() {
+			if r := recover(); r != nil {
+				warnf("peer manager tick thread panic: %v", r)
+			}
+			p.getClient().shutdown()
+			debugf("stop thread: peer manager tick")
+		}()
 		for p.getClient().isRunning() {
 			wake := time.Now().Add(time.Second)
 			if p.tick() != 0 {
@@ -384,8 +391,6 @@ func (p *PeerManager) startTickThread(excludeIP IP4) int {
 			}
 			time.Sleep(time.Until(wake))
 		}
-		p.getClient().shutdown()
-		debugf("stop thread: peer manager tick")
 	})
 	return 0
 }
@@ -443,13 +448,18 @@ func (p *PeerManager) initSocket() int {
 	if p.pollThread == nil {
 		p.pollThread = newThread(func() {
 			debugf("start thread: peer manager poll")
+			defer func() {
+				if r := recover(); r != nil {
+					warnf("peer manager poll thread panic: %v", r)
+				}
+				p.getClient().shutdown()
+				debugf("stop thread: peer manager poll")
+			}()
 			for p.getClient().isRunning() {
 				if p.poll() != 0 {
 					break
 				}
 			}
-			p.getClient().shutdown()
-			debugf("stop thread: peer manager poll")
 		})
 	}
 	return 0

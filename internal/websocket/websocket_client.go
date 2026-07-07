@@ -93,32 +93,44 @@ func (w *WebSocketClient) run(client *Client) int {
 
 	w.msgThread = newThread(func() {
 		debugf("start thread: websocket client msg")
+		defer func() {
+			if r := recover(); r != nil {
+				warnf("websocket msg thread panic: %v", r)
+			}
+			w.getClient().shutdown()
+			debugf("stop thread: websocket client msg")
+		}()
 		for w.getClient().isRunning() {
 			w.handleWsQueue()
 		}
-		w.getClient().shutdown()
-		debugf("stop thread: websocket client msg")
 	})
 
 	w.wsThread = newThread(func() {
+		debugf("start thread: websocket client ws")
 		defer func() {
 			if r := recover(); r != nil {
-				warnf("websocket client ws panic: %v", r)
+				warnf("websocket client ws thread panic: %v", r)
 			}
+			w.getClient().shutdown()
+			debugf("stop thread: websocket client ws")
+			_ = w.disconnect()
 		}()
-		debugf("start thread: websocket client ws")
 		for w.getClient().isRunning() {
 			if w.handleWsConn() != 0 {
 				break
 			}
 		}
-		w.getClient().shutdown()
-		debugf("stop thread: websocket client ws")
-		_ = w.disconnect()
 	})
 
 	w.pingThread = newThread(func() {
 		debugf("start thread: websocket client ping")
+		defer func() {
+			if r := recover(); r != nil {
+				warnf("websocket ping thread panic: %v", r)
+				w.getClient().shutdown()
+			}
+			debugf("stop thread: websocket client ping")
+		}()
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for w.getClient().isRunning() {
@@ -133,7 +145,6 @@ func (w *WebSocketClient) run(client *Client) int {
 				break
 			}
 		}
-		debugf("stop thread: websocket client ping")
 	})
 
 	return 0
