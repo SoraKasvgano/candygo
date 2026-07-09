@@ -39,6 +39,14 @@ func SetNoTimestamp(enabled bool) {
 	setNoTimestamp(enabled)
 }
 
+func SetLogLevel(level string) error {
+	return setLogLevel(level)
+}
+
+func SetLogFile(path string) error {
+	return setLogFile(path)
+}
+
 func Debugf(format string, args ...any) {
 	debugf(format, args...)
 }

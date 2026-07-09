@@ -2,7 +2,9 @@ package common
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -31,36 +33,93 @@ func candySystem() string {
 }
 
 var (
-	debugEnabled      atomic.Bool
 	noTimestampOutput atomic.Bool
+	minLogPriority    atomic.Int32
 	logMutex          sync.Mutex
+	logOutput         io.Writer = os.Stdout
+	logCloser         io.Closer
 	stdLogOnce        sync.Once
 )
 
+const (
+	logPriorityDebug int32 = iota
+	logPriorityInfo
+	logPriorityWarn
+	logPriorityError
+	logPriorityCritical
+)
+
+func init() {
+	minLogPriority.Store(logPriorityInfo)
+}
+
 func setDebug(enabled bool) {
-	debugEnabled.Store(enabled)
+	if enabled {
+		minLogPriority.Store(logPriorityDebug)
+		return
+	}
+	minLogPriority.Store(logPriorityInfo)
 }
 
 func setNoTimestamp(enabled bool) {
 	noTimestampOutput.Store(enabled)
 }
 
+func setLogLevel(level string) error {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "", "information", "info":
+		minLogPriority.Store(logPriorityInfo)
+	case "trace", "debug":
+		minLogPriority.Store(logPriorityDebug)
+	case "warning", "warn":
+		minLogPriority.Store(logPriorityWarn)
+	case "error":
+		minLogPriority.Store(logPriorityError)
+	case "fatal", "critical":
+		minLogPriority.Store(logPriorityCritical)
+	default:
+		return fmt.Errorf("unknown log level: %s", level)
+	}
+	return nil
+}
+
+func logPriority(level string) int32 {
+	switch strings.ToLower(level) {
+	case "debug":
+		return logPriorityDebug
+	case "warn", "warning":
+		return logPriorityWarn
+	case "error":
+		return logPriorityError
+	case "critical", "fatal":
+		return logPriorityCritical
+	default:
+		return logPriorityInfo
+	}
+}
+
 func logf(level string, format string, args ...any) {
+	level = strings.ToLower(level)
+	if logPriority(level) < minLogPriority.Load() {
+		return
+	}
+
 	logMutex.Lock()
 	defer logMutex.Unlock()
 
-	level = strings.ToLower(level)
+	out := logOutput
+	if out == nil {
+		out = os.Stdout
+	}
 	if noTimestampOutput.Load() {
-		fmt.Printf("[%s] %s\n", level, fmt.Sprintf(format, args...))
+		_, _ = fmt.Fprintf(out, "[%s] %s\n", level, fmt.Sprintf(format, args...))
 		return
 	}
-	fmt.Printf("[%s] [%s] %s\n", getCurrentTimeWithMillis(), level, fmt.Sprintf(format, args...))
+	_, _ = fmt.Fprintf(out, "[%s] [%s] %s\n", getCurrentTimeWithMillis(), level, fmt.Sprintf(format, args...))
 }
 
 func debugf(format string, args ...any) {
-	if debugEnabled.Load() {
-		logf("debug", format, args...)
-	}
+	logf("debug", format, args...)
 }
 
 func infof(format string, args ...any) {

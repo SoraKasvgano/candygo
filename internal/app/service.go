@@ -50,14 +50,15 @@ func runService(args []string) int {
 	if *logdir != "" {
 		_ = os.MkdirAll(*logdir, 0o755)
 		appLog := filepath.Join(*logdir, "app.log")
-		f, err := os.OpenFile(appLog, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-		if err == nil {
-			defer f.Close()
-			infof("log file: %s", appLog)
+		if err := setLogFile(appLog); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to open log file: %v\n", err)
+			return 1
 		}
 	}
 	if *loglevel != "" {
-		setDebug(*loglevel == "debug")
+		if err := setLogLevel(*loglevel); err != nil {
+			warnf("%v", err)
+		}
 	}
 
 	mux := http.NewServeMux()

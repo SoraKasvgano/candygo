@@ -21,6 +21,8 @@ var (
 	sleepOneSecond       = common.SleepOneSecond
 	initThirdPartyLogger = common.InitThirdPartyLogger
 	setDebug             = common.SetDebug
+	setLogFile           = common.SetLogFile
+	setLogLevel          = common.SetLogLevel
 	debugf               = common.Debugf
 	infof                = common.Infof
 	warnf                = common.Warnf
