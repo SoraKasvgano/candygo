@@ -643,7 +643,7 @@ func (p *PeerManager) poll() int {
 		return 0
 	}
 	payload := append([]byte{}, buffer[:n]...)
-	if p.stun.address != nil && address.IP.Equal(p.stun.address.IP) && address.Port == p.stun.address.Port {
+	if p.isStunResponse(payload, address) {
 		p.handleStunResponse(payload)
 		return 0
 	}
@@ -651,6 +651,13 @@ func (p *PeerManager) poll() int {
 		p.handleMessage(plaintext, address)
 	}
 	return 0
+}
+
+func (p *PeerManager) isStunResponse(buffer []byte, address *net.UDPAddr) bool {
+	if p.stun.address == nil || address == nil || address.Port != p.stun.address.Port || len(buffer) < 2 {
+		return false
+	}
+	return binary.BigEndian.Uint16(buffer[:2]) == 0x0101
 }
 
 func (p *PeerManager) decrypt(ciphertext []byte) ([]byte, bool) {
