@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	wgtun "golang.zx2c4.com/wireguard/tun"
 )
@@ -21,7 +20,6 @@ type osTun struct {
 	mask    IP4
 	prefix  uint32
 	mtu     int
-	timeout time.Duration
 
 	devMu   sync.Mutex
 	dev     wgtun.Device
@@ -49,10 +47,6 @@ func (t *osTun) setName(name string) int {
 func (t *osTun) setIP(ip IP4) int {
 	t.ip = ip
 	return 0
-}
-
-func (t *osTun) getIP() IP4 {
-	return t.ip
 }
 
 func (t *osTun) setMask(mask IP4) int {

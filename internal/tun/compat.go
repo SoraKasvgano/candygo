@@ -24,6 +24,7 @@ var (
 	decodeSysRouteEntry = common.DecodeSysRouteEntry
 	ip4HeaderIsIPv4     = common.Ip4HeaderIsIPv4
 	ip4HeaderIsIPIP     = common.Ip4HeaderIsIPIP
+	ip4HeaderSAddr      = common.Ip4HeaderSAddr
 	ip4HeaderDAddr      = common.Ip4HeaderDAddr
 	packIPIP            = common.PackIPIP
 	debugf              = common.Debugf

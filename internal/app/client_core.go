@@ -101,8 +101,24 @@ func (c *Client) setMtu(mtu int) {
 	_ = c.tun.SetMTU(mtu)
 }
 
+func (c *Client) waitForThreads() {
+	_ = c.ws.Wait()
+	_ = c.tun.Wait()
+	_ = c.peerManager.Wait()
+}
+
+func (c *Client) clearMsgQueues() {
+	c.wsMsgQueue.Clear()
+	c.tunMsgQueue.Clear()
+	c.peerMsgQueue.Clear()
+}
+
 func (c *Client) run() {
 	c.running.Store(true)
+	defer func() {
+		c.waitForThreads()
+		c.clearMsgQueues()
+	}()
 
 	if c.ws.Run(c) != 0 {
 		return
@@ -113,14 +129,6 @@ func (c *Client) run() {
 	if c.peerManager.Run(c) != 0 {
 		return
 	}
-
-	_ = c.ws.Wait()
-	_ = c.tun.Wait()
-	_ = c.peerManager.Wait()
-
-	c.wsMsgQueue.Clear()
-	c.tunMsgQueue.Clear()
-	c.peerMsgQueue.Clear()
 }
 
 func (c *Client) isRunning() bool {

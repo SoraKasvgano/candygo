@@ -3,7 +3,6 @@ package tun
 import (
 	"runtime"
 	"sync"
-	"time"
 )
 
 type Tun struct {
@@ -14,13 +13,15 @@ type Tun struct {
 	sysRtMutex sync.RWMutex
 	sysRtTable []SysRouteEntry
 
+	ip     IP4
+	mask   IP4
 	impl   *osTun
 	client *Client
 }
 
 func (t *Tun) ensureImpl() {
 	if t.impl == nil {
-		t.impl = &osTun{mtu: 1400, timeout: time.Second}
+		t.impl = &osTun{mtu: 1400}
 	}
 }
 
@@ -56,13 +57,13 @@ func (t *Tun) run(client *Client) int {
 }
 
 func (t *Tun) wait() int {
-	if t.tunThread != nil {
-		t.tunThread.Join()
-		t.tunThread = nil
-	}
 	if t.msgThread != nil {
 		t.msgThread.Join()
 		t.msgThread = nil
+	}
+	if t.tunThread != nil {
+		t.tunThread.Join()
+		t.tunThread = nil
 	}
 	t.sysRtMutex.Lock()
 	t.sysRtTable = nil
@@ -71,8 +72,11 @@ func (t *Tun) wait() int {
 }
 
 func (t *Tun) getIP() IP4 {
-	t.ensureImpl()
-	return t.impl.getIP()
+	return t.ip
+}
+
+func (t *Tun) getMask() IP4 {
+	return t.mask
 }
 
 func (t *Tun) setAddress(cidr string) int {
@@ -82,20 +86,40 @@ func (t *Tun) setAddress(cidr string) int {
 		return -1
 	}
 	infof("client address: %s", address.ToCidr())
-	if t.impl.setIP(address.Host()) != 0 {
+	ip := address.Host()
+	mask := address.Mask()
+	if t.impl.setIP(ip) != 0 {
+		return -1
+	}
+	if t.impl.setMask(mask) != 0 {
 		return -1
 	}
 	if runtime.GOOS == "windows" {
-		if t.impl.setPrefix(address.Mask().ToPrefix()) != 0 {
-			return -1
-		}
-	} else {
-		if t.impl.setMask(address.Mask()) != 0 {
+		if t.impl.setPrefix(mask.ToPrefix()) != 0 {
 			return -1
 		}
 	}
+	t.ip = ip
+	t.mask = mask
 	t.tunAddress = cidr
 	return 0
+}
+
+func (t *Tun) inTunNetwork(addr IP4) bool {
+	return addr.And(t.getMask()) == t.getIP().And(t.getMask())
+}
+
+func (t *Tun) invalidSrcDst(src, dst IP4) bool {
+	if t.inTunNetwork(src) && t.inTunNetwork(dst) {
+		return false
+	}
+	if dst.ToUint32() == 0xffffffff {
+		return false
+	}
+	if dst.ToUint32()&0xf0000000 == 0xe0000000 {
+		return false
+	}
+	return true
 }
 
 func (t *Tun) handleTunDevice() int {
@@ -117,6 +141,11 @@ func (t *Tun) handleTunDevice() int {
 	}
 
 	headerDst := ip4HeaderDAddr(buffer)
+	if headerDst == t.getIP() {
+		_ = t.write(buffer)
+		return 0
+	}
+
 	nextHop := func() IP4 {
 		t.sysRtMutex.RLock()
 		defer t.sysRtMutex.RUnlock()
@@ -133,8 +162,9 @@ func (t *Tun) handleTunDevice() int {
 		headerDst = ip4HeaderDAddr(buffer)
 	}
 
-	if headerDst == t.getIP() {
-		_ = t.write(buffer)
+	headerSrc := ip4HeaderSAddr(buffer)
+	if t.invalidSrcDst(headerSrc, headerDst) {
+		debugf("packet src=%s or dst=%s not in tun network, dropping", headerSrc.ToString(), headerDst.ToString())
 		return 0
 	}
 
